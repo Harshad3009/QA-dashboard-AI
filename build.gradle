@@ -30,6 +30,15 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // LangChain4j BOM (Bill of Materials) to manage versions
+    implementation platform('dev.langchain4j:langchain4j-bom:0.36.0')
+
+    // The LangChain4j Spring Boot Starter
+    implementation 'dev.langchain4j:langchain4j-spring-boot-starter'
+
+    // The Gemini Integration (Google AI Studio)
+    implementation 'dev.langchain4j:langchain4j-google-ai-gemini-spring-boot-starter'
 }
 
 tasks.named('test') {
