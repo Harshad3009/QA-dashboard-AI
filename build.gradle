@@ -25,20 +25,20 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-    // LangChain4j BOM (Bill of Materials) to manage versions
-    implementation platform('dev.langchain4j:langchain4j-bom:0.36.0')
+    // LangChain4j BOM (Bill of Materials) - Switch to 0.35.0 for stability
+    implementation platform('dev.langchain4j:langchain4j-bom:0.35.0')
 
-    // The LangChain4j Spring Boot Starter
+    // Core Spring Boot Starter (Provides the AI integration magic)
     implementation 'dev.langchain4j:langchain4j-spring-boot-starter'
 
-    // The Gemini Integration (Google AI Studio)
-    implementation 'dev.langchain4j:langchain4j-google-ai-gemini-spring-boot-starter'
+    // Gemini Model Library (Instead of the specific starter)
+    // The BOM will handle the version for this
+    implementation 'dev.langchain4j:langchain4j-google-ai-gemini'
 }
 
 tasks.named('test') {
