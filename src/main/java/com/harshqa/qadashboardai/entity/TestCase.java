@@ -21,10 +21,10 @@ public class TestCase {
     // Storing Status as a String for simplicity (PASS, FAIL, SKIP)
     private String status;
 
-    // Use @Lob for Large Objects (Long text like stack traces)
-    @Lob
-    @Column(length = 10000) // Allow up to 10k chars
-    private String failureMessage;
+    // Many TestCases can point to One TestFailure (The De-duplication)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "failure_id")
+    private TestFailure testFailure;
 
     // Relationship: Many TestCases belong to One TestRun
     @ManyToOne
