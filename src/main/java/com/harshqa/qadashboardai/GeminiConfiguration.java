@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 @Configuration
 public class GeminiConfiguration {
 
@@ -17,6 +19,7 @@ public class GeminiConfiguration {
         return GoogleAiGeminiChatModel.builder()
                 .apiKey(geminiApiKey)
                 .modelName("gemini-flash-latest")
+                .timeout(Duration.ofMinutes(2))
                 .logRequestsAndResponses(true)
                 .build();
     }

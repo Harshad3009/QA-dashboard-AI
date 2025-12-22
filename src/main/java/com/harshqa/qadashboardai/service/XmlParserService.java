@@ -66,6 +66,12 @@ public class XmlParserService {
                 String rawMessage = failNode.getAttribute("message");
                 String rawTrace = failNode.getTextContent().trim();
 
+                // --- SAFETY TRUNCATION ---
+                // If trace is huge, cut it off. 1000 chars is usually enough for the Root Cause.
+                if (rawTrace.length() > 1000) {
+                    rawTrace = rawTrace.substring(0, 1000) + "\n... [Truncated by QA Dashboard]";
+                }
+
                 // --- DEDUPLICATION LOGIC ---
                 // We use the stack trace as the "Key" to identify uniqueness.
                 String uniqueKey = rawTrace;
