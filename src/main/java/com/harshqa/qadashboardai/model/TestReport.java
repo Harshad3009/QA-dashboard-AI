@@ -2,6 +2,7 @@ package com.harshqa.qadashboardai.model;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class TestReport {
     private int failCount;
     private int skipCount;
     private double totalDuration;
+    private LocalDateTime timestamp;
 
     // The Unique Dictionary of Errors
     private List<FailureDefinition> failureCatalog = new ArrayList<>();

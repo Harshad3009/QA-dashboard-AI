@@ -12,6 +12,8 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,6 +39,30 @@ public class XmlParserService {
         Element suiteElement = (Element) doc.getElementsByTagName("testsuite").item(0);
         if (suiteElement != null) {
             report.setTotalDuration(Double.parseDouble(getAttribute(suiteElement, "time", "0.0")));
+
+            String timestampStr = suiteElement.getAttribute("timestamp");
+            if (timestampStr != null && !timestampStr.isEmpty()) {
+                try {
+                    // Step 1: Parse as OffsetDateTime to handle the "+05:30"
+                    OffsetDateTime odt = OffsetDateTime.parse(timestampStr);
+
+                    // Step 2: Convert to LocalDateTime (This keeps "11:24:30")
+                    report.setTimestamp(odt.toLocalDateTime());
+
+                } catch (Exception e) {
+                    // Fallback: If standard offset parsing fails, try simple Local parsing
+                    // or just default to NOW.
+                    try {
+                        report.setTimestamp(LocalDateTime.parse(timestampStr));
+                    } catch (Exception ex) {
+                        System.err.println("Warning: Could not parse timestamp '" + timestampStr + "'. Using current time.");
+                        report.setTimestamp(LocalDateTime.now());
+                    }
+                }
+            } else {
+                report.setTimestamp(LocalDateTime.now());
+            }
+
         }
 
         // 2. Iterate ALL test cases

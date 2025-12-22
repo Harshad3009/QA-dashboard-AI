@@ -23,7 +23,7 @@ public class TestRunService {
     public Long saveTestRun(TestReport report) {
         // 1. Map POJO -> Entity
         TestRun run = new TestRun();
-        run.setExecutionDate(LocalDateTime.now());
+        run.setExecutionDate(report.getTimestamp() != null ? report.getTimestamp() : LocalDateTime.now());
         run.setTotalTests(report.getTotalTests());
         run.setPassCount(report.getPassCount());
         run.setFailCount(report.getFailCount());
