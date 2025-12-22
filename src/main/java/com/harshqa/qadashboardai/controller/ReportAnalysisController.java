@@ -3,6 +3,7 @@ package com.harshqa.qadashboardai.controller;
 import com.harshqa.qadashboardai.model.FailureDefinition;
 import com.harshqa.qadashboardai.model.TestReport;
 import com.harshqa.qadashboardai.service.AiAnalysisService;
+import com.harshqa.qadashboardai.service.TestRunService;
 import com.harshqa.qadashboardai.service.XmlParserService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,24 +16,27 @@ public class ReportAnalysisController {
 
     private final XmlParserService xmlParserService;
     private final AiAnalysisService aiAnalysisService;
+    private final TestRunService testRunService;
 
     // Dependency Injection: We ask Spring for the parser we just made
-    public ReportAnalysisController(XmlParserService xmlParserService, AiAnalysisService aiAnalysisService) {
+    public ReportAnalysisController(XmlParserService xmlParserService, AiAnalysisService aiAnalysisService, TestRunService testRunService) {
         this.xmlParserService = xmlParserService;
         this.aiAnalysisService = aiAnalysisService;
+        this.testRunService = testRunService;
     }
 
     @PostMapping("/analyze")
     public String analyzeReport(@RequestParam("file") MultipartFile file) {
         try {
-            // 1. Parse the XML to Java Object
+            // Parse the XML to Java Object
             TestReport report = xmlParserService.parse(file.getInputStream());
 
-            // 2. Send the Object to AI for analysis
-            String aiResponse = aiAnalysisService.analyze(report);
+            // SAVE to Database
+            Long runId = testRunService.saveTestRun(report);
+            System.out.println("Report saved with ID: " + runId);
 
-            // 3. Return the AI's insights
-            return aiResponse;
+            // Return the AI's insights
+            return aiAnalysisService.analyze(report);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Failed to process report: " + e.getMessage());
