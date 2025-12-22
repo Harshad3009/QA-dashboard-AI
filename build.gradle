@@ -39,6 +39,12 @@ dependencies {
     // Gemini Model Library (Instead of the specific starter)
     // The BOM will handle the version for this
     implementation 'dev.langchain4j:langchain4j-google-ai-gemini'
+
+    // The Database (H2 - In-Memory SQL DB)
+    runtimeOnly 'com.h2database:h2'
+
+    // The Translator (Spring Data JPA)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 }
 
 tasks.named('test') {
