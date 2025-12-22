@@ -1,9 +1,14 @@
 package com.harshqa.qadashboardai.service;
 
+import com.harshqa.qadashboardai.model.FailureDefinition;
 import com.harshqa.qadashboardai.model.TestReport;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import lombok.Builder;
+import lombok.Data;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
+
+import java.util.List;
 
 @Service
 public class AiAnalysisService {
@@ -18,10 +23,24 @@ public class AiAnalysisService {
 
     public String analyze(TestReport report) {
         try {
+
+            // 1. Create a "Lite" context. We ONLY map the stats and the failures.
+            // We explicitly DROP the 'passedTests' and 'skippedTests' lists.
+            AiContextDto context = AiContextDto.builder()
+                    .totalTests(report.getTotalTests())
+                    .passCount(report.getPassCount())
+                    .failCount(report.getFailCount())
+                    .skipCount(report.getSkipCount())
+                    .totalDuration(report.getTotalDuration())
+                    .failureCatalog(report.getFailureCatalog()) // The dictionary of errors
+                    .failedTestsRef(report.getFailedTests())    // The list of failed test names
+                    .build();
+
             // 1. Convert our Java Object to a JSON String so the AI can read it
-            String jsonContext = objectMapper.writeValueAsString(report);
+            String jsonContext = objectMapper.writeValueAsString(context);
 
             // --- DEBUG LOGGING ---
+            System.out.println("Original Payload Size: " + objectMapper.writeValueAsString(report).length() + " characters.");
             System.out.println("Payload size: " + jsonContext.length() + " characters.");
             // ---------------------
 
@@ -61,5 +80,18 @@ public class AiAnalysisService {
             e.printStackTrace();
             throw new RuntimeException("Error during AI Analysis: " + e.getMessage());
         }
+    }
+
+    // --- Inner Class: The Lightweight DTO ---
+    @Data
+    @Builder
+    private static class AiContextDto {
+        private int totalTests;
+        private int passCount;
+        private int failCount;
+        private int skipCount;
+        private double totalDuration;
+        private List<FailureDefinition> failureCatalog;
+        private List<?> failedTestsRef; // We keep failed tests
     }
 }
