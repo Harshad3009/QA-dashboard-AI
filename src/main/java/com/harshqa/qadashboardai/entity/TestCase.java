@@ -1,7 +1,9 @@
 package com.harshqa.qadashboardai.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 @Data
 @Entity
@@ -27,5 +29,7 @@ public class TestCase {
     // Relationship: Many TestCases belong to One TestRun
     @ManyToOne
     @JoinColumn(name = "run_id") // This creates the Foreign Key column in the DB
+    @JsonIgnore
+    @ToString.Exclude
     private TestRun testRun;
 }
