@@ -36,10 +36,6 @@ public class XmlParserService {
         // 1. Process Metadata (High Level Stats)
         Element suiteElement = (Element) doc.getElementsByTagName("testsuite").item(0);
         if (suiteElement != null) {
-            report.setTotalTests(Integer.parseInt(getAttribute(suiteElement, "tests", "0")));
-            report.setFailCount(Integer.parseInt(getAttribute(suiteElement, "failures", "0")));
-            report.setSkipCount(Integer.parseInt(getAttribute(suiteElement, "skipped", "0")));
-            // Pass count is usually Total - (Fail + Error + Skip), or calculated manually
             report.setTotalDuration(Double.parseDouble(getAttribute(suiteElement, "time", "0.0")));
         }
 
@@ -57,14 +53,15 @@ public class XmlParserService {
             // Check for children to see status
             NodeList failureNodes = testElement.getElementsByTagName("failure");
             NodeList errorNodes = testElement.getElementsByTagName("error"); // Treat errors as failures
+            NodeList skippedNodes = testElement.getElementsByTagName("skipped");
 
-            boolean isFailure = failureNodes.getLength() > 0 || errorNodes.getLength() > 0;
-            boolean isSkipped = testElement.getElementsByTagName("skipped").getLength() > 0;
+            boolean isFailure = failureNodes.getLength() > 0;
+            boolean isError = errorNodes.getLength() > 0;
+            boolean isSkipped = skippedNodes.getLength() > 0;
 
-            if (isFailure) {
+            if (isFailure || isError) {
                 // Determine which node has the details (failure or error)
-                Element failNode = (failureNodes.getLength() > 0) ?
-                        (Element) failureNodes.item(0) : (Element) errorNodes.item(0);
+                Element failNode = isFailure ? (Element) failureNodes.item(0) : (Element) errorNodes.item(0);
 
                 String rawMessage = failNode.getAttribute("message");
                 String rawTrace = failNode.getTextContent().trim();
@@ -111,7 +108,7 @@ public class XmlParserService {
             } else if (isSkipped) {
                 // Add to Passed list (or separate Skipped list if you prefer)
                 // For now, adding to Passed but marking status SKIP per requirements logic
-                report.getPassedTests().add(TestCaseDetail.builder()
+                report.getSkippedTests().add(TestCaseDetail.builder()
                         .testName(name)
                         .className(className)
                         .duration(duration)
@@ -128,8 +125,12 @@ public class XmlParserService {
             }
         }
 
-        // Calculate strict pass count based on list size
+        // Final Calculations (Truth based on parsing)
         report.setPassCount(report.getPassedTests().size());
+        report.setFailCount(report.getFailedTests().size()); // Includes both Errors & Failures
+        report.setSkipCount(report.getSkippedTests().size());
+        report.setTotalTests(report.getPassCount() + report.getFailCount() + report.getSkipCount());
+
 
         return report;
     }

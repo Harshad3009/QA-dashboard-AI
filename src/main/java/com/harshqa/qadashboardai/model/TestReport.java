@@ -21,5 +21,6 @@ public class TestReport {
     // The Containers
     private List<TestCaseDetail> passedTests = new ArrayList<>();
     private List<TestCaseDetail> failedTests = new ArrayList<>();
+    private List<TestCaseDetail> skippedTests = new ArrayList<>();
 
 }
