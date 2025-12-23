@@ -1,8 +1,12 @@
 package com.harshqa.qadashboardai.service;
 
+import com.harshqa.qadashboardai.dto.FailureStatDto;
 import com.harshqa.qadashboardai.dto.TrendDto;
+import com.harshqa.qadashboardai.entity.TestFailure;
 import com.harshqa.qadashboardai.entity.TestRun;
+import com.harshqa.qadashboardai.repository.TestCaseRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,9 +19,11 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final TestRunRepository testRunRepository;
+    private final TestCaseRepository testCaseRepository;
 
-    public DashboardService(TestRunRepository testRunRepository) {
+    public DashboardService(TestRunRepository testRunRepository, TestCaseRepository testCaseRepository) {
         this.testRunRepository = testRunRepository;
+        this.testCaseRepository = testCaseRepository;
     }
 
     public List<TrendDto> getTrendAnalysis(int days) {
@@ -47,5 +53,25 @@ public class DashboardService {
                 .failCount(run.getFailCount()) // Includes Skips if you want, or keep separate
                 .passRate(Math.round(passRate * 100.0) / 100.0) // Round to 2 decimals
                 .build();
+    }
+
+    public List<FailureStatDto> getTopFailures(int limit) {
+        // Ask repository for the top 'limit' items
+        List<Object[]> results = testCaseRepository.findTopFailures(PageRequest.of(0, limit));
+
+        // Map the raw [Entity, Count] array to DTOs
+        return results.stream()
+                .map(row -> {
+                    TestFailure failure = (TestFailure) row[0];
+                    Long count = (Long) row[1];
+
+                    return FailureStatDto.builder()
+                            .failureId(failure.getId())
+                            .hash(failure.getFailureHash())
+                            .errorMessage(failure.getMessage()) // The short summary
+                            .count(count)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 }
