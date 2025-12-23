@@ -5,7 +5,6 @@ import com.harshqa.qadashboardai.model.TestReport;
 import com.harshqa.qadashboardai.service.AiAnalysisService;
 import com.harshqa.qadashboardai.service.TestRunService;
 import com.harshqa.qadashboardai.service.XmlParserService;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,8 +24,8 @@ public class ReportAnalysisController {
         this.testRunService = testRunService;
     }
 
-    @PostMapping("/analyze")
-    public String analyzeReport(@RequestParam("file") MultipartFile file) {
+    @PostMapping("/uploadReport")
+    public Long uploadReport(@RequestParam("file") MultipartFile file) {
         try {
             // Parse the XML to Java Object
             TestReport report = xmlParserService.parse(file.getInputStream());
@@ -35,8 +34,9 @@ public class ReportAnalysisController {
             Long runId = testRunService.saveTestRun(report);
             System.out.println("Report saved with ID: " + runId);
 
-            // Return the AI's insights
-            return aiAnalysisService.analyze(report);
+            // Return ID immediately. Do NOT call AI here.
+            return runId;
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Failed to process report: " + e.getMessage());

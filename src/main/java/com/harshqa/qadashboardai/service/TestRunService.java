@@ -122,4 +122,48 @@ public class TestRunService {
             throw new RuntimeException("Hashing failed", e);
         }
     }
+
+    public TestReport reconstructReportFromDb(TestRun run) {
+        TestReport report = new TestReport();
+        report.setTotalTests(run.getTotalTests());
+        report.setPassCount(run.getPassCount());
+        report.setFailCount(run.getFailCount());
+        report.setSkipCount(run.getSkipCount());
+        report.setTotalDuration(run.getTotalDuration());
+        report.setTimestamp(run.getExecutionDate());
+
+        // Reconstruct the Failure Catalog
+        // We only need failed tests for analysis
+        List<TestCaseDetail> failedTests = run.getTestCases().stream()
+                .filter(tc -> "FAIL".equals(tc.getStatus()))
+                .map(tc -> {
+                    // Rebuild the detail object
+                    return TestCaseDetail.builder()
+                            .testName(tc.getTestName())
+                            .className(tc.getClassName())
+                            .duration(tc.getDuration())
+                            .status("FAIL")
+                            // If we have a linked failure, use its hash/ID as reference
+                            .failureRefId(tc.getTestFailure() != null ? tc.getTestFailure().getFailureHash() : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // Also rebuild the distinct failure catalog from the DB entities
+        List<FailureDefinition> catalog = run.getTestCases().stream()
+                .filter(tc -> "FAIL".equals(tc.getStatus()) && tc.getTestFailure() != null)
+                .map(tc -> tc.getTestFailure())
+                .distinct()
+                .map(f -> FailureDefinition.builder()
+                        .id(f.getFailureHash())
+                        .message(f.getMessage())
+                        .stackTrace(f.getStackTrace())
+                        .build())
+                .collect(Collectors.toList());
+
+        report.setFailedTests(failedTests);
+        report.setFailureCatalog(catalog);
+
+        return report;
+    }
 }

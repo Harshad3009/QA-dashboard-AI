@@ -23,6 +23,12 @@ public class TestRun {
     private int failCount;
     private int skipCount;
 
+    // Store the JSON response from Gemini here.
+    // It can be large, so we use @Lob.
+    @Lob
+    @Column(length = 10000)
+    private String aiAnalysis;
+
     // Relationship: One TestRun has Many TestCases
     // "mappedBy" refers to the field name in the child class
     // CascadeType.ALL means: If I save the Run, save all its TestCases too.
