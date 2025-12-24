@@ -24,7 +24,7 @@ public class ReportAnalysisController {
         this.testRunService = testRunService;
     }
 
-    @PostMapping("/uploadReport")
+    @PostMapping("/upload-report")
     public Long uploadReport(@RequestParam("file") MultipartFile file) {
         try {
             // Parse the XML to Java Object
