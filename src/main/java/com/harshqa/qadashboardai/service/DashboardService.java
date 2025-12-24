@@ -1,6 +1,7 @@
 package com.harshqa.qadashboardai.service;
 
 import com.harshqa.qadashboardai.dto.FailureStatDto;
+import com.harshqa.qadashboardai.dto.FlakyTestDto;
 import com.harshqa.qadashboardai.dto.TrendDto;
 import com.harshqa.qadashboardai.entity.TestFailure;
 import com.harshqa.qadashboardai.entity.TestRun;
@@ -70,6 +71,31 @@ public class DashboardService {
                             .hash(failure.getFailureHash())
                             .errorMessage(failure.getMessage()) // The short summary
                             .count(count)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<FlakyTestDto> getFlakyTests(int days) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+
+        List<Object[]> results = testCaseRepository.findFlakyTests(cutoff);
+
+        return results.stream()
+                .map(row -> {
+                    String testName = (String) row[0];
+                    String className = (String) row[1];
+                    Long total = (Long) row[2];
+                    Long failures = (Long) row[3];
+
+                    double score = (double) failures / total * 100;
+
+                    return FlakyTestDto.builder()
+                            .testName(testName)
+                            .className(className)
+                            .totalExecutions(total)
+                            .failCount(failures)
+                            .flakinessScore(Math.round(score * 100.0) / 100.0)
                             .build();
                 })
                 .collect(Collectors.toList());

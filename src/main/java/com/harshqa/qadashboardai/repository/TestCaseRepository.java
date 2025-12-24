@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -20,4 +21,17 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
             "GROUP BY tc.testFailure " +
             "ORDER BY COUNT(tc) DESC")
     List<Object[]> findTopFailures(Pageable pageable);
+
+    /**
+     * Finds tests that have > 1 distinct status (e.g., both PASS and FAIL)
+     * within the given timeframe.
+     */
+    @Query("SELECT tc.testName, tc.className, COUNT(tc), " +
+            "SUM(CASE WHEN tc.status = 'FAIL' THEN 1 ELSE 0 END) " +
+            "FROM TestCase tc " +
+            "JOIN tc.testRun tr " +
+            "WHERE tr.executionDate > :since " +
+            "GROUP BY tc.testName, tc.className " +
+            "HAVING COUNT(DISTINCT tc.status) > 1")
+    List<Object[]> findFlakyTests(LocalDateTime since);
 }

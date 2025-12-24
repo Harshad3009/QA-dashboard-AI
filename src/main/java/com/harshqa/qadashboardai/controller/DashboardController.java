@@ -1,6 +1,7 @@
 package com.harshqa.qadashboardai.controller;
 
 import com.harshqa.qadashboardai.dto.FailureStatDto;
+import com.harshqa.qadashboardai.dto.FlakyTestDto;
 import com.harshqa.qadashboardai.dto.TrendDto;
 import com.harshqa.qadashboardai.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,5 +31,11 @@ public class DashboardController {
     @GetMapping("/top-failures")
     public List<FailureStatDto> getTopFailures(@RequestParam(defaultValue = "5") int limit) {
         return dashboardService.getTopFailures(limit);
+    }
+
+    // Endpoint: GET /api/dashboard/flaky-tests?days=30
+    @GetMapping("/flaky-tests")
+    public List<FlakyTestDto> getFlakyTests(@RequestParam(defaultValue = "30") int days) {
+        return dashboardService.getFlakyTests(days);
     }
 }
