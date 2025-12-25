@@ -1,6 +1,7 @@
 package com.harshqa.qadashboardai.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.ToString;
@@ -25,6 +26,13 @@ public class TestCase {
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "failure_id")
     private TestFailure testFailure;
+
+    // --- NEW HELPER FOR FRONTEND ---
+    // This creates a JSON field "failureMessage" automatically!
+    @JsonProperty("failureMessage")
+    public String getFailureMessageText() {
+        return testFailure != null ? testFailure.getStackTrace() : null;
+    }
 
     // Relationship: Many TestCases belong to One TestRun
     @ManyToOne
