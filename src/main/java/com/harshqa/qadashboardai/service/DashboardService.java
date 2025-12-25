@@ -95,6 +95,7 @@ public class DashboardService {
                             .className(className)
                             .totalExecutions(total)
                             .failCount(failures)
+                            .passCount(total - failures)
                             .flakinessScore(Math.round(score * 100.0) / 100.0)
                             .build();
                 })

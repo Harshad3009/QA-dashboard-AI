@@ -10,5 +10,6 @@ public class FlakyTestDto {
     private String className;
     private long totalExecutions;
     private long failCount;
+    private long passCount;
     private double flakinessScore; // e.g., 50% (Failed half the time)
 }
