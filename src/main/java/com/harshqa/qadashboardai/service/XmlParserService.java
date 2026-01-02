@@ -133,18 +133,18 @@ public class XmlParserService {
                         .testName(name)
                         .className(className)
                         .duration(duration)
-                        .status("FAIL")
+                        .status("FAILED")
                         .failureRefId(failureId) // LINKING HAPPENS HERE
                         .build());
 
             } else if (isSkipped) {
                 // Add to Passed list (or separate Skipped list if you prefer)
-                // For now, adding to Passed but marking status SKIP per requirements logic
+                // For now, adding to Passed but marking status SKIPPED per requirements logic
                 report.getSkippedTests().add(TestCaseDetail.builder()
                         .testName(name)
                         .className(className)
                         .duration(duration)
-                        .status("SKIP")
+                        .status("SKIPPED")
                         .build());
             } else {
                 // Happy Path
@@ -152,7 +152,7 @@ public class XmlParserService {
                         .testName(name)
                         .className(className)
                         .duration(duration)
-                        .status("PASS")
+                        .status("PASSED")
                         .build());
             }
         }

@@ -19,7 +19,7 @@ public class TestCase {
     private String className;
     private double duration;
 
-    // Storing Status as a String for simplicity (PASS, FAIL, SKIP)
+    // Storing Status as a String for simplicity (PASSED, FAILED, SKIPPED)
     private String status;
 
     // Many TestCases can point to One TestFailure (The De-duplication)

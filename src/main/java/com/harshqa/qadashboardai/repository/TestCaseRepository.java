@@ -23,11 +23,11 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
     List<Object[]> findTopFailures(Pageable pageable);
 
     /**
-     * Finds tests that have > 1 distinct status (e.g., both PASS and FAIL)
+     * Finds tests that have > 1 distinct status (e.g., both PASSED and FAILED)
      * within the given timeframe.
      */
     @Query("SELECT tc.testName, tc.className, COUNT(tc), " +
-            "SUM(CASE WHEN tc.status = 'FAIL' THEN 1 ELSE 0 END) " +
+            "SUM(CASE WHEN tc.status = 'FAILED' THEN 1 ELSE 0 END) " +
             "FROM TestCase tc " +
             "JOIN tc.testRun tr " +
             "WHERE tr.executionDate > :since " +

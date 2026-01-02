@@ -50,9 +50,9 @@ public class TestRunService {
 
         // Map Test Cases
         // Combine all lists (Pass, Fail, Skip) into one DB list
-        mapTestCases(run, report.getPassedTests(), "PASS", Collections.emptyMap());
-        mapTestCases(run, report.getFailedTests(), "FAIL", failureMap);
-        mapTestCases(run, report.getSkippedTests(), "SKIP", Collections.emptyMap());
+        mapTestCases(run, report.getPassedTests(), "PASSED", Collections.emptyMap());
+        mapTestCases(run, report.getFailedTests(), "FAILED", failureMap);
+        mapTestCases(run, report.getSkippedTests(), "SKIPPED", Collections.emptyMap());
 
         // Save to DB (Cascade will save all test cases too)
         TestRun savedRun = testRunRepository.save(run);
@@ -71,7 +71,7 @@ public class TestRunService {
             testCase.setStatus(status);
 
             // If this test failed, look up the stack trace using the Ref ID
-            if ("FAIL".equals(status) && detail.getFailureRefId() != null) {
+            if ("FAILED".equals(status) && detail.getFailureRefId() != null) {
                 String stackTrace = failureMap.get(detail.getFailureRefId());
                 if (stackTrace != null) {
                     TestFailure failureEntity = getOrCreateFailure(stackTrace, detail.getFailureRefId()); // You might pass just stackTrace
@@ -135,14 +135,14 @@ public class TestRunService {
         // Reconstruct the Failure Catalog
         // We only need failed tests for analysis
         List<TestCaseDetail> failedTests = run.getTestCases().stream()
-                .filter(tc -> "FAIL".equals(tc.getStatus()))
+                .filter(tc -> "FAILED".equals(tc.getStatus()))
                 .map(tc -> {
                     // Rebuild the detail object
                     return TestCaseDetail.builder()
                             .testName(tc.getTestName())
                             .className(tc.getClassName())
                             .duration(tc.getDuration())
-                            .status("FAIL")
+                            .status("FAILED")
                             // If we have a linked failure, use its hash/ID as reference
                             .failureRefId(tc.getTestFailure() != null ? tc.getTestFailure().getFailureHash() : null)
                             .build();
@@ -151,7 +151,7 @@ public class TestRunService {
 
         // Also rebuild the distinct failure catalog from the DB entities
         List<FailureDefinition> catalog = run.getTestCases().stream()
-                .filter(tc -> "FAIL".equals(tc.getStatus()) && tc.getTestFailure() != null)
+                .filter(tc -> "FAILED".equals(tc.getStatus()) && tc.getTestFailure() != null)
                 .map(tc -> tc.getTestFailure())
                 .distinct()
                 .map(f -> FailureDefinition.builder()
