@@ -54,7 +54,9 @@ class TestRunController {
         TestReport reportContext = testRunService.reconstructReportFromDb(run);
 
         // 3. Generate Analysis
-        String analysis = aiAnalysisService.analyze(reportContext);
+        String analysis = aiAnalysisService.analyze(reportContext)
+                .replaceAll("^```(?:json)?\\s*", "") // Remove opening ```
+                .replaceAll("\\s*```\\s*$", "");    // Remove closing ```
 
         // 4. Save to DB (Persistence)
         run.setAiAnalysis(analysis);
