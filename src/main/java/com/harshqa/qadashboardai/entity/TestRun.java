@@ -34,4 +34,20 @@ public class TestRun {
     // CascadeType.ALL means: If I save the Run, save all its TestCases too.
     @OneToMany(mappedBy = "testRun", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TestCase> testCases = new ArrayList<>();
+
+    // @Transient tells Hibernate/JPA: "Do not look for a 'status' column in the DB".
+    // However, Jackson (JSON) will still call this getter and add "status" to the API response.
+    @Transient
+    public String getStatus() {
+        if (totalTests == 0) {
+            return "Unhealthy"; // Default to Unhealthy if empty
+        }
+
+        // Calculate Percentage: (Pass / Total) * 100
+        double passRate = ((double) passCount / (totalTests-skipCount)) * 100;
+
+        // Logic: > 85% is Healthy
+        return passRate > 85 ? "Healthy" : "Unhealthy";
+    }
+
 }

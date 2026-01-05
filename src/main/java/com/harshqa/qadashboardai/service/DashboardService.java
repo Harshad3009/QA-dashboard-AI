@@ -44,7 +44,7 @@ public class DashboardService {
     private TrendDto convertToDto(TestRun run) {
         double passRate = 0.0;
         if (run.getTotalTests() > 0) {
-            passRate = (double) run.getPassCount() / run.getTotalTests() * 100;
+            passRate = (double) run.getPassCount() / (run.getTotalTests()-run.getSkipCount()) * 100;
         }
 
         return TrendDto.builder()
