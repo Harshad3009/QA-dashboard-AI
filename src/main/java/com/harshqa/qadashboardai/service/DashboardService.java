@@ -56,9 +56,12 @@ public class DashboardService {
                 .build();
     }
 
-    public List<FailureStatDto> getTopFailures(int limit) {
-        // Ask repository for the top 'limit' items
-        List<Object[]> results = testCaseRepository.findTopFailures(PageRequest.of(0, limit));
+    public List<FailureStatDto> getTopFailures(int limit, int days) {
+        // Calculate Cutoff
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+
+        // Ask repository for the top 'limit' items within cutoff period
+        List<Object[]> results = testCaseRepository.findTopFailures(cutoff, PageRequest.of(0, limit));
 
         // Map the raw [Entity, Count] array to DTOs
         return results.stream()

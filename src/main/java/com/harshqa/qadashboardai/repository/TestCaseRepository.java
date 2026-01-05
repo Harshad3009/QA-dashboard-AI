@@ -17,10 +17,12 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
 
     // We select the Failure Entity and the Count
     @Query("SELECT tc.testFailure, COUNT(tc) FROM TestCase tc " +
+            "JOIN tc.testRun tr " +
             "WHERE tc.testFailure IS NOT NULL " +
+            "AND tr.executionDate > :since " +
             "GROUP BY tc.testFailure " +
             "ORDER BY COUNT(tc) DESC")
-    List<Object[]> findTopFailures(Pageable pageable);
+    List<Object[]> findTopFailures(LocalDateTime since, Pageable pageable);
 
     /**
      * Finds tests that have > 1 distinct status (e.g., both PASSED and FAILED)

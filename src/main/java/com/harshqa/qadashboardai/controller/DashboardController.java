@@ -29,8 +29,11 @@ public class DashboardController {
 
     // Endpoint: GET /api/dashboard/top-failures?limit=5
     @GetMapping("/top-failures")
-    public List<FailureStatDto> getTopFailures(@RequestParam(defaultValue = "5") int limit) {
-        return dashboardService.getTopFailures(limit);
+    public List<FailureStatDto> getTopFailures(
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(defaultValue = "30") int days
+        ) {
+        return dashboardService.getTopFailures(limit, days);
     }
 
     // Endpoint: GET /api/dashboard/flaky-tests?days=30
