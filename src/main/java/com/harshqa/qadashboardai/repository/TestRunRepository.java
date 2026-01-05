@@ -14,6 +14,12 @@ public interface TestRunRepository extends JpaRepository<TestRun, Long> {
     // SELECT * FROM test_runs ORDER BY execution_date DESC LIMIT 10
     List<TestRun> findTop10ByOrderByExecutionDateDesc();
 
+    List<TestRun> findTop5ByOrderByExecutionDateDesc();
+
+    // Test runs history page (Filter by Date + Sort Newest First)
+    // Adding "OrderByExecutionDateDesc" to ensure the UI shows the latest runs at the top.
+    List<TestRun> findAllByExecutionDateAfterOrderByExecutionDateDesc(LocalDateTime date);
+
     // Find all runs after a specific date (e.g., 7 days ago)
     List<TestRun> findAllByExecutionDateAfter(LocalDateTime date);
 }

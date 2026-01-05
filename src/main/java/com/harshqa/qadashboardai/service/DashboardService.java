@@ -32,7 +32,7 @@ public class DashboardService {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
 
         // 2. Fetch runs from DB
-        List<TestRun> runs = testRunRepository.findAllByExecutionDateAfter(cutoff);
+        List<TestRun> runs = testRunRepository.findAllByExecutionDateAfterOrderByExecutionDateDesc(cutoff);
 
         // 3. Transform to DTOs and Sort by Date
         return runs.stream()
