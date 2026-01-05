@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @RestController
 public class ReportAnalysisController {
 
@@ -25,17 +28,21 @@ public class ReportAnalysisController {
     }
 
     @PostMapping("/upload-report")
-    public Long uploadReport(@RequestParam("file") MultipartFile file) {
+    public List<Long> uploadReport(@RequestParam("files") MultipartFile[] files) {
+        List<Long> runIds = new ArrayList<>();
         try {
-            // Parse the XML to Java Object
-            TestReport report = xmlParserService.parse(file.getInputStream());
+            for (MultipartFile file : files) {
+                // Parse the XML to Java Object
+                TestReport report = xmlParserService.parse(file.getInputStream());
 
-            // SAVE to Database
-            Long runId = testRunService.saveTestRun(report);
-            System.out.println("Report saved with ID: " + runId);
+                // SAVE to Database
+                Long runId = testRunService.saveTestRun(report);
+                System.out.println("Report saved with ID: " + runId);
 
-            // Return ID immediately. Do NOT call AI here.
-            return runId;
+                // Add the IDs to array to return after processing all the files.
+                runIds.add(runId);
+            }
+            return runIds;
 
         } catch (Exception e) {
             e.printStackTrace();
