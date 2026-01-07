@@ -11,4 +11,9 @@ public class TrendDto {
     private int passCount;
     private int failCount;
     private double passRate;  // e.g., 95.5
+
+    // Metrics for Execution Time Chart
+    private double avgDuration;
+    private double maxDuration;
+    private double minDuration;
 }

@@ -12,4 +12,9 @@ public class FlakyTestDto {
     private long failCount;
     private long passCount;
     private double flakinessScore; // e.g., 50% (Failed half the time)
+
+    // Management Fields
+    private String id; // Composite key or specific ID
+    private boolean acknowledged;
+    private String resolutionStatus;
 }
