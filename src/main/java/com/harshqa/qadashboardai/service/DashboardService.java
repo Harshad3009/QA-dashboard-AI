@@ -4,6 +4,7 @@ import com.harshqa.qadashboardai.dto.FailurePatternDto;
 import com.harshqa.qadashboardai.dto.FailureStatDto;
 import com.harshqa.qadashboardai.dto.FlakyTestDto;
 import com.harshqa.qadashboardai.dto.TrendDto;
+import com.harshqa.qadashboardai.entity.TestCase;
 import com.harshqa.qadashboardai.entity.TestFailure;
 import com.harshqa.qadashboardai.entity.TestManagement;
 import com.harshqa.qadashboardai.entity.TestRun;
@@ -13,6 +14,7 @@ import com.harshqa.qadashboardai.repository.TestManagementRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +40,7 @@ public class DashboardService {
         this.testFailureRepository = testFailureRepository;
     }
 
+    @Transactional(readOnly = true) // <--- Added Transactional to allow fetching Lazy testCases
     public List<TrendDto> getTrendAnalysis(int days) {
         // Calculate the cutoff date
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
@@ -59,12 +62,19 @@ public class DashboardService {
                     int passCount = dailyRuns.stream().mapToInt(TestRun::getPassCount).sum();
                     int failCount = dailyRuns.stream().mapToInt(TestRun::getFailCount).sum();
 
-                    // Execution Times
+                    // Execution times: Aggregate metrics from INDIVIDUAL TEST CASES, not the Suite Total
                     DoubleSummaryStatistics stats = dailyRuns.stream()
-                            .mapToDouble(TestRun::getTotalDuration)
+                            .flatMap(run -> run.getTestCases().stream()) // Drill down to test cases
+                            .filter(tc -> !"SKIPPED".equalsIgnoreCase(tc.getStatus()))
+                            .mapToDouble(TestCase::getDuration)          // Get individual durations
                             .summaryStatistics();
 
                     double passRate = totalTests > 0 ? (double) passCount / totalTests * 100 : 0;
+
+                    // Handle case where no tests exist to avoid Infinity/-Infinity
+                    double avg = stats.getCount() > 0 ? stats.getAverage() : 0.0;
+                    double max = stats.getCount() > 0 ? stats.getMax() : 0.0;
+                    double min = stats.getCount() > 0 ? stats.getMin() : 0.0;
 
                     return TrendDto.builder()
                             .date(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
@@ -72,9 +82,9 @@ public class DashboardService {
                             .passCount(passCount)
                             .failCount(failCount)
                             .passRate(Math.round(passRate * 10.0) / 10.0)
-                            .avgDuration(Math.round(stats.getAverage() * 100.0) / 100.0)
-                            .maxDuration(Math.round(stats.getMax() * 100.0) / 100.0)
-                            .minDuration(Math.round(stats.getMin() * 100.0) / 100.0)
+                            .avgDuration(Math.round(avg * 100.0) / 100.0)
+                            .maxDuration(Math.round(max * 100.0) / 100.0)
+                            .minDuration(Math.round(min * 100.0) / 100.0)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -135,7 +145,6 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    // New: Update Flaky Status
     public FlakyTestDto updateFlakyStatus(String className, String testName, boolean acknowledged, String status) {
         TestManagement mgmt = testManagementRepository
                 .findByClassNameAndTestName(className, testName)
@@ -156,7 +165,6 @@ public class DashboardService {
                 .build();
     }
 
-    // New: Failure Patterns
     public List<FailurePatternDto> getFailurePatterns(int days) {
         // Simple regex/keyword matching on top failures
         // In a real app, you might use AI or clustering here
@@ -172,7 +180,7 @@ public class DashboardService {
         categories.put("Other", 0);
 
         for (FailureStatDto fail : topFailures) {
-            String msg = fail.getErrorMessage().toLowerCase();
+            String msg = fail.getErrorMessage() != null ? fail.getErrorMessage().toLowerCase() : "";
             long count = fail.getCount();
 
             if (msg.contains("timeout") || msg.contains("nosuchelement")) {
