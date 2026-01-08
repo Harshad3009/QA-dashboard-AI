@@ -38,6 +38,7 @@ out/
 
 ### Properties Files ###
 src/main/resources/application.properties
+*.properties
 
 ### Database Files ###
 *.db
