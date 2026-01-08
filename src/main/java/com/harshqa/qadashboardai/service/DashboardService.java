@@ -1,15 +1,11 @@
 package com.harshqa.qadashboardai.service;
 
-import com.harshqa.qadashboardai.dto.FailurePatternDto;
-import com.harshqa.qadashboardai.dto.FailureStatDto;
-import com.harshqa.qadashboardai.dto.FlakyTestDto;
-import com.harshqa.qadashboardai.dto.TrendDto;
+import com.harshqa.qadashboardai.dto.*;
 import com.harshqa.qadashboardai.entity.TestCase;
 import com.harshqa.qadashboardai.entity.TestFailure;
 import com.harshqa.qadashboardai.entity.TestManagement;
 import com.harshqa.qadashboardai.entity.TestRun;
 import com.harshqa.qadashboardai.repository.TestCaseRepository;
-import com.harshqa.qadashboardai.repository.TestFailureRepository;
 import com.harshqa.qadashboardai.repository.TestManagementRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
 import org.springframework.data.domain.PageRequest;
@@ -28,27 +24,41 @@ public class DashboardService {
     private final TestRunRepository testRunRepository;
     private final TestCaseRepository testCaseRepository;
     private final TestManagementRepository testManagementRepository;
-    private final TestFailureRepository testFailureRepository;
 
     public DashboardService(TestRunRepository testRunRepository,
                             TestCaseRepository testCaseRepository,
-                            TestManagementRepository testManagementRepository,
-                            TestFailureRepository testFailureRepository) {
+                            TestManagementRepository testManagementRepository) {
         this.testRunRepository = testRunRepository;
         this.testCaseRepository = testCaseRepository;
         this.testManagementRepository = testManagementRepository;
-        this.testFailureRepository = testFailureRepository;
     }
 
-    @Transactional(readOnly = true) // <--- Added Transactional to allow fetching Lazy testCases
-    public List<TrendDto> getTrendAnalysis(int days) {
+    @Transactional(readOnly = true)
+    public TrendsResponse getTrendAnalysis(int days) {
         // Calculate the cutoff date
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.minusDays(days);
+        LocalDateTime prevCutoff = now.minusDays(days * 2);
 
-        // Fetch runs from DB
+        // 1. Fetch Current Period Runs
         List<TestRun> runs = testRunRepository.findAllByExecutionDateAfterOrderByExecutionDateDesc(cutoff);
 
-        // Group by Date (LocalDate)
+        // 2. Fetch Previous Period Runs (for Trend Calculation)
+        List<TestRun> prevRuns = testRunRepository.findAllByExecutionDateBetween(prevCutoff, cutoff);
+
+        // 3. Calculate Daily Trends (The List)
+        List<TrendDto> dailyTrends = calculateDailyTrends(runs);
+
+        // 4. Calculate Top Level Metrics
+        DashboardMetricsDto metrics = calculateDashboardMetrics(runs, prevRuns, cutoff);
+
+        return TrendsResponse.builder()
+                .metrics(metrics)
+                .dailyTrends(dailyTrends)
+                .build();
+    }
+
+    private List<TrendDto> calculateDailyTrends(List<TestRun> runs) {
         Map<LocalDate, List<TestRun>> groupedByDate = runs.stream()
                 .collect(Collectors.groupingBy(run -> run.getExecutionDate().toLocalDate()));
 
@@ -90,6 +100,52 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
+    private DashboardMetricsDto calculateDashboardMetrics(List<TestRun> currentRuns, List<TestRun> prevRuns, LocalDateTime cutoff) {
+        // A. Total Runs
+        int totalRuns = currentRuns.size();
+
+        // B. Avg Pass Rate (Weighted by tests per run)
+        long totalTests = currentRuns.stream().mapToLong(TestRun::getTotalTests).sum();
+        long totalPass = currentRuns.stream().mapToLong(TestRun::getPassCount).sum();
+        double avgPassRate = totalTests > 0 ? (double) totalPass / totalTests * 100 : 0.0;
+
+        // C. Latest Pass Rate
+        double latestPassRate = 0.0;
+        if (!currentRuns.isEmpty()) {
+            TestRun latest = currentRuns.get(0); // Already sorted DESC
+            latestPassRate = latest.getTotalTests() > 0
+                    ? (double) latest.getPassCount() / latest.getTotalTests() * 100
+                    : 0.0;
+        }
+
+        // D. Pass Rate Trend (Current vs Previous)
+        long prevTotalTests = prevRuns.stream().mapToLong(TestRun::getTotalTests).sum();
+        long prevTotalPass = prevRuns.stream().mapToLong(TestRun::getPassCount).sum();
+        double prevPassRate = prevTotalTests > 0 ? (double) prevTotalPass / prevTotalTests * 100 : 0.0;
+
+        double trend = avgPassRate - prevPassRate; // Positive = Good, Negative = Bad
+
+        // E. Unique Failures
+        long uniqueFailures = testCaseRepository.countUniqueFailures(cutoff);
+
+        // F. Avg Execution Time (Across ALL tests in current period)
+        DoubleSummaryStatistics execStats = currentRuns.stream()
+                .flatMap(run -> run.getTestCases().stream())
+                .filter(tc -> !"SKIPPED".equalsIgnoreCase(tc.getStatus()))
+                .mapToDouble(TestCase::getDuration)
+                .summaryStatistics();
+        double avgExecTime = execStats.getCount() > 0 ? execStats.getAverage() : 0.0;
+
+        return DashboardMetricsDto.builder()
+                .totalRuns(totalRuns)
+                .avgPassRate(Math.round(avgPassRate * 10.0) / 10.0)
+                .latestPassRate(Math.round(latestPassRate * 10.0) / 10.0)
+                .passRateTrend(Math.round(trend * 10.0) / 10.0)
+                .totalUniqueFailures(uniqueFailures)
+                .avgExecutionTime(Math.round(avgExecTime * 100.0) / 100.0)
+                .build();
+    }
+
     public List<FailureStatDto> getTopFailures(int limit, int days) {
         // Calculate Cutoff
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
@@ -112,11 +168,11 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    public List<FlakyTestDto> getFlakyTests(int days) {
+    public FlakyTestsResponse getFlakyTests(int days) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
         List<Object[]> results = testCaseRepository.findFlakyTests(cutoff);
 
-        return results.stream()
+        List<FlakyTestDto> tests = results.stream()
                 .map(row -> {
                     String testName = (String) row[0];
                     String className = (String) row[1];
@@ -143,6 +199,28 @@ public class DashboardService {
                             .build();
                 })
                 .collect(Collectors.toList());
+
+        // Calculate Flaky Metrics
+        int total = tests.size();
+        int ack = (int) tests.stream().filter(FlakyTestDto::isAcknowledged).count();
+        int resolved = (int) tests.stream().filter(t -> "resolved".equals(t.getResolutionStatus())).count();
+        int progress = (int) tests.stream().filter(t -> "in-progress".equals(t.getResolutionStatus())).count();
+        int investing = (int) tests.stream().filter(t -> "investigating".equals(t.getResolutionStatus())).count();
+        int unresolved = (int) tests.stream().filter(t -> "unresolved".equals(t.getResolutionStatus())).count();
+
+        FlakyMetricsDto metrics = FlakyMetricsDto.builder()
+                .totalFlakyTests(total)
+                .acknowledgedCount(ack)
+                .resolvedCount(resolved)
+                .inProgressCount(progress)
+                .investigatingCount(investing)
+                .unresolvedCount(unresolved)
+                .build();
+
+        return FlakyTestsResponse.builder()
+                .metrics(metrics)
+                .tests(tests)
+                .build();
     }
 
     public FlakyTestDto updateFlakyStatus(String className, String testName, boolean acknowledged, String status) {

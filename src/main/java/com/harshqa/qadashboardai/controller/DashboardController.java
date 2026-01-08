@@ -1,9 +1,6 @@
 package com.harshqa.qadashboardai.controller;
 
-import com.harshqa.qadashboardai.dto.FailurePatternDto;
-import com.harshqa.qadashboardai.dto.FailureStatDto;
-import com.harshqa.qadashboardai.dto.FlakyTestDto;
-import com.harshqa.qadashboardai.dto.TrendDto;
+import com.harshqa.qadashboardai.dto.*;
 import com.harshqa.qadashboardai.service.DashboardService;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +18,7 @@ public class DashboardController {
     }
 
     @GetMapping("/trends")
-    public List<TrendDto> getTrends(@RequestParam(defaultValue = "7") int days) {
+    public TrendsResponse getTrends(@RequestParam(defaultValue = "7") int days) {
         return dashboardService.getTrendAnalysis(days);
     }
 
@@ -39,7 +36,7 @@ public class DashboardController {
     }
 
     @GetMapping("/flaky-tests")
-    public List<FlakyTestDto> getFlakyTests(@RequestParam(defaultValue = "30") int days) {
+    public FlakyTestsResponse getFlakyTests(@RequestParam(defaultValue = "30") int days) {
         return dashboardService.getFlakyTests(days);
     }
 
@@ -50,7 +47,6 @@ public class DashboardController {
         String testName = (String) payload.get("testName");
         boolean acknowledged = (boolean) payload.get("acknowledged");
         String status = (String) payload.get("resolutionStatus");
-
         return dashboardService.updateFlakyStatus(className, testName, acknowledged, status);
     }
 }

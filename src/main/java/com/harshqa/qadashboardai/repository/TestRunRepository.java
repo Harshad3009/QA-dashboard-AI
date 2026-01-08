@@ -22,4 +22,7 @@ public interface TestRunRepository extends JpaRepository<TestRun, Long> {
 
     // Find all runs after a specific date (e.g., 7 days ago)
     List<TestRun> findAllByExecutionDateAfter(LocalDateTime date);
+
+    // For previous period calculation (Trend indicator)
+    List<TestRun> findAllByExecutionDateBetween(LocalDateTime start, LocalDateTime end);
 }

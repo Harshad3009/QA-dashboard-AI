@@ -36,4 +36,10 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
             "GROUP BY tc.testName, tc.className " +
             "HAVING COUNT(DISTINCT tc.status) > 1")
     List<Object[]> findFlakyTests(LocalDateTime since);
+
+    // Count UNIQUE test cases that failed in the period
+    @Query("SELECT COUNT(DISTINCT CONCAT(tc.className, '.', tc.testName)) " +
+            "FROM TestCase tc JOIN tc.testRun tr " +
+            "WHERE tr.executionDate > :since AND tc.status = 'FAILED'")
+    Long countUniqueFailures(LocalDateTime since);
 }
