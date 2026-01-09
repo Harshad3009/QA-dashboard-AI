@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collections;
@@ -217,6 +218,30 @@ public class TestRunService {
         } catch (Exception e) {
             throw new RuntimeException("Hashing failed", e);
         }
+    }
+
+    // Delete by ID
+    @Transactional
+    public void deleteRunById(Long id) {
+        if (testRunRepository.existsById(id)) {
+            testRunRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Test Run not found with ID: " + id);
+        }
+    }
+
+    // NEW: Delete by Date (YYYY-MM-DD)
+    @Transactional
+    public void deleteRunByDate(LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+
+        List<TestRun> runs = testRunRepository.findAllByExecutionDateBetween(startOfDay, endOfDay);
+        if (runs.isEmpty()) {
+            throw new RuntimeException("No Test Run found for date: " + date);
+        }
+
+        testRunRepository.deleteAll(runs);
     }
 
     public TestReport reconstructReportFromDb(TestRun run) {
