@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +32,37 @@ public class TestRunService {
         this.testFailureRepository = testFailureRepository;
     }
 
+    /**
+     * Smart Save:
+     * 1. Checks if a run exists for the same DATE (ignoring timestamp).
+     * 2. If exists -> MERGE (Update only failed tests based on new XML).
+     * 3. If new -> CREATE (Standard save).
+     */
     @Transactional // Ensures either everything saves or nothing saves (Atomic)
     public Long saveTestRun(TestReport report) {
+
+        LocalDateTime reportDate = report.getTimestamp();
+        if (reportDate == null) reportDate = LocalDateTime.now();
+
+        // Calculate Start and End of the Day to find existing run
+        LocalDateTime startOfDay = reportDate.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = reportDate.toLocalDate().atTime(LocalTime.MAX);
+
+        // Fetch runs for this date
+        List<TestRun> existingRuns = testRunRepository.findAllByExecutionDateBetween(startOfDay, endOfDay);
+
+        if (!existingRuns.isEmpty()) {
+            // MERGE STRATEGY: Update the existing run (Taking the first match if multiple exist)
+            TestRun existingRun = existingRuns.getFirst();
+            return mergeWithExistingRun(existingRun, report);
+        } else {
+            // CREATE STRATEGY: Standard new entry
+            return createNewTestRun(report);
+        }
+
+    }
+
+    private Long createNewTestRun(TestReport report) {
         // Map POJO -> Entity
         TestRun run = new TestRun();
         run.setExecutionDate(report.getTimestamp() != null ? report.getTimestamp() : LocalDateTime.now());
@@ -58,6 +88,72 @@ public class TestRunService {
         TestRun savedRun = testRunRepository.save(run);
         System.out.println("Saved Run ID: " + savedRun.getId());
         return savedRun.getId();
+    }
+
+    private Long mergeWithExistingRun(TestRun existingRun, TestReport rerunReport) {
+        // 1. Filter only currently FAILED tests in the DB
+        List<TestCase> existingFailures = existingRun.getTestCases().stream()
+                .filter(tc -> "FAILED".equalsIgnoreCase(tc.getStatus()))
+                .collect(Collectors.toList());
+
+        if (existingFailures.isEmpty()) {
+            return existingRun.getId(); // Nothing to fix
+        }
+
+        // 2. Create a Map of the Rerun Report for fast lookup
+        // Key: ClassName + "#" + TestName
+        Map<String, TestCaseDetail> rerunMap = rerunReport.getPassedTests().stream()
+                .collect(Collectors.toMap(
+                        tc -> tc.getClassName() + "#" + tc.getTestName(),
+                        tc -> tc,
+                        (existing, replacement) -> existing // Keep first if duplicates occur
+                ));
+        rerunMap.putAll(rerunReport.getFailedTests().stream()
+                .collect(Collectors.toMap(
+                        tc -> tc.getClassName() + "#" + tc.getTestName(),
+                        tc -> tc,
+                        (existing, replacement) -> existing // Keep first if duplicates occur
+                )));
+
+        int fixedCount = 0;
+
+        // 3. Iterate through DB failures and check against Rerun XML
+        for (TestCase dbFailure : existingFailures) {
+            String key = dbFailure.getClassName() + "#" + dbFailure.getTestName();
+            int kanIndex = key.indexOf("_KAN");
+            if (kanIndex != -1) {
+                key = key.substring(0, kanIndex);
+            }
+            boolean shouldUpdateToPassed = false;
+
+            if (!rerunMap.containsKey(key)) {
+                // CASE i: Test NOT in Rerun XML -> Assume it passed in an intermediate run
+                shouldUpdateToPassed = true;
+            } else {
+                // CASE ii: Test IS in Rerun XML -> Check if it passed this time
+                TestCaseDetail rerunDetail = rerunMap.get(key);
+                if (rerunDetail.getFailureRefId() == null || "PASSED".equalsIgnoreCase(rerunDetail.getStatus())) {
+                    shouldUpdateToPassed = true;
+                }
+            }
+
+            // 4. Apply Update
+            if (shouldUpdateToPassed) {
+                dbFailure.setStatus("PASSED");
+                dbFailure.setTestFailure(null); // Clear the failure details
+                fixedCount++;
+            }
+        }
+
+        // 5. Update Run Totals if any tests were fixed
+        if (fixedCount > 0) {
+            existingRun.setPassCount(existingRun.getPassCount() + fixedCount);
+            existingRun.setFailCount(Math.max(0, existingRun.getFailCount() - fixedCount));
+            testRunRepository.save(existingRun);
+            System.out.println("Merged Rerun: Fixed " + fixedCount + " failures for Run ID " + existingRun.getId());
+        }
+
+        return existingRun.getId();
     }
 
     private void mapTestCases(TestRun run, List<TestCaseDetail> details, String status, Map<String, String> failureMap) {
