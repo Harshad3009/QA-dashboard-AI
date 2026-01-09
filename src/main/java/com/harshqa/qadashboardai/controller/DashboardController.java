@@ -36,8 +36,10 @@ public class DashboardController {
     }
 
     @GetMapping("/flaky-tests")
-    public FlakyTestsResponse getFlakyTests(@RequestParam(defaultValue = "30") int days) {
-        return dashboardService.getFlakyTests(days);
+    public FlakyTestsResponse getFlakyTests(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(defaultValue = "0") int flakyThreshold) {
+        return dashboardService.getFlakyTests(days, flakyThreshold);
     }
 
     // Endpoint to update Flaky Test Status

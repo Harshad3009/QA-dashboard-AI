@@ -171,7 +171,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    public FlakyTestsResponse getFlakyTests(int days) {
+    public FlakyTestsResponse getFlakyTests(int days, int threshold) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
         List<Object[]> results = testCaseRepository.findFlakyTests(cutoff);
 
@@ -201,6 +201,10 @@ public class DashboardService {
                             .resolutionStatus(mgmt.getResolutionStatus())
                             .build();
                 })
+                // Filter by Threshold
+                .filter(t -> t.getFlakinessScore() >= threshold)
+                // Sort Descending (Highest Flakiness First)
+                .sorted((t1, t2) -> Double.compare(t2.getFlakinessScore(), t1.getFlakinessScore()))
                 .collect(Collectors.toList());
 
         // Calculate Flaky Metrics
