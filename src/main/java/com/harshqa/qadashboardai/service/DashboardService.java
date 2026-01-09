@@ -71,6 +71,7 @@ public class DashboardService {
                     int totalTests = dailyRuns.stream().mapToInt(TestRun::getTotalTests).sum();
                     int passCount = dailyRuns.stream().mapToInt(TestRun::getPassCount).sum();
                     int failCount = dailyRuns.stream().mapToInt(TestRun::getFailCount).sum();
+                    int skipCount = dailyRuns.stream().mapToInt(TestRun::getSkipCount).sum();
 
                     // Execution times: Aggregate metrics from INDIVIDUAL TEST CASES, not the Suite Total
                     DoubleSummaryStatistics stats = dailyRuns.stream()
@@ -79,7 +80,7 @@ public class DashboardService {
                             .mapToDouble(TestCase::getDuration)          // Get individual durations
                             .summaryStatistics();
 
-                    double passRate = totalTests > 0 ? (double) passCount / totalTests * 100 : 0;
+                    double passRate = totalTests > 0 ? (double) passCount / (totalTests-skipCount) * 100 : 0;
 
                     // Handle case where no tests exist to avoid Infinity/-Infinity
                     double avg = stats.getCount() > 0 ? stats.getAverage() : 0.0;
@@ -107,14 +108,16 @@ public class DashboardService {
         // B. Avg Pass Rate (Weighted by tests per run)
         long totalTests = currentRuns.stream().mapToLong(TestRun::getTotalTests).sum();
         long totalPass = currentRuns.stream().mapToLong(TestRun::getPassCount).sum();
-        double avgPassRate = totalTests > 0 ? (double) totalPass / totalTests * 100 : 0.0;
+        long totalFail = currentRuns.stream().mapToLong(TestRun::getFailCount).sum();
+        long totalSkip = currentRuns.stream().mapToLong(TestRun::getSkipCount).sum();
+        double avgPassRate = totalTests > 0 ? (double) totalPass / (totalTests-totalSkip) * 100 : 0.0;
 
         // C. Latest Pass Rate
         double latestPassRate = 0.0;
         if (!currentRuns.isEmpty()) {
-            TestRun latest = currentRuns.get(0); // Already sorted DESC
+            TestRun latest = currentRuns.getFirst(); // Already sorted DESC
             latestPassRate = latest.getTotalTests() > 0
-                    ? (double) latest.getPassCount() / latest.getTotalTests() * 100
+                    ? (double) latest.getPassCount() / (latest.getTotalTests()-latest.getSkipCount()) * 100
                     : 0.0;
         }
 
@@ -168,7 +171,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    public FlakyTestsResponse getFlakyTests(int days) {
+    public FlakyTestsResponse getFlakyTests(int days, int threshold) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
         List<Object[]> results = testCaseRepository.findFlakyTests(cutoff);
 
@@ -198,6 +201,10 @@ public class DashboardService {
                             .resolutionStatus(mgmt.getResolutionStatus())
                             .build();
                 })
+                // Filter by Threshold
+                .filter(t -> t.getFlakinessScore() >= threshold)
+                // Sort Descending (Highest Flakiness First)
+                .sorted((t1, t2) -> Double.compare(t2.getFlakinessScore(), t1.getFlakinessScore()))
                 .collect(Collectors.toList());
 
         // Calculate Flaky Metrics

@@ -6,8 +6,10 @@ import com.harshqa.qadashboardai.repository.TestRunRepository;
 import com.harshqa.qadashboardai.service.AiAnalysisService;
 import com.harshqa.qadashboardai.service.TestRunService;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -51,6 +53,20 @@ class TestRunController {
     public TestRun getRunById(@PathVariable Long id) {
         return testRunRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Run not found: " + id));
+    }
+
+    // Delete by ID
+    @DeleteMapping("/{id}")
+    public void deleteRun(@PathVariable Long id) {
+        testRunService.deleteRunById(id);
+    }
+
+    // Delete by Date (e.g., DELETE /api/runs?date=2025-12-26)
+    @DeleteMapping
+    public void deleteRunByDate(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        testRunService.deleteRunByDate(date);
     }
 
     // Endpoint: POST /api/runs/{id}/analyze
