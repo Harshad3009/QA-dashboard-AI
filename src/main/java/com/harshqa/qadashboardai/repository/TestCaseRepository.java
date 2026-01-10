@@ -4,6 +4,7 @@ import com.harshqa.qadashboardai.entity.TestCase;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -20,9 +21,10 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
             "JOIN tc.testRun tr " +
             "WHERE tc.testFailure IS NOT NULL " +
             "AND tr.executionDate > :since " +
+            "AND tr.project.id = :projectId " +
             "GROUP BY tc.testFailure " +
             "ORDER BY COUNT(tc) DESC")
-    List<Object[]> findTopFailures(LocalDateTime since, Pageable pageable);
+    List<Object[]> findTopFailures(LocalDateTime since, @Param("projectId") Long projectId, Pageable pageable);
 
     /**
      * Finds tests that have > 1 distinct status (e.g., both PASSED and FAILED)
@@ -33,13 +35,15 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
             "FROM TestCase tc " +
             "JOIN tc.testRun tr " +
             "WHERE tr.executionDate > :since " +
+            "AND tr.project.id = :projectId " +
             "GROUP BY tc.testName, tc.className " +
             "HAVING COUNT(DISTINCT tc.status) > 1")
-    List<Object[]> findFlakyTests(LocalDateTime since);
+    List<Object[]> findFlakyTests(LocalDateTime since, @Param("projectId") Long projectId);
 
     // Count UNIQUE test cases that failed in the period
     @Query("SELECT COUNT(DISTINCT CONCAT(tc.className, '.', tc.testName)) " +
             "FROM TestCase tc JOIN tc.testRun tr " +
-            "WHERE tr.executionDate > :since AND tc.status = 'FAILED'")
-    Long countUniqueFailures(LocalDateTime since);
+            "WHERE tr.executionDate > :since AND tc.status = 'FAILED'" +
+            "AND tr.project.id = :projectId")
+    Long countUniqueFailures(LocalDateTime since, @Param("projectId") Long projectId);
 }

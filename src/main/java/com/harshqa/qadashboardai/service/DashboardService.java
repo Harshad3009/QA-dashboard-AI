@@ -1,10 +1,8 @@
 package com.harshqa.qadashboardai.service;
 
 import com.harshqa.qadashboardai.dto.*;
-import com.harshqa.qadashboardai.entity.TestCase;
-import com.harshqa.qadashboardai.entity.TestFailure;
-import com.harshqa.qadashboardai.entity.TestManagement;
-import com.harshqa.qadashboardai.entity.TestRun;
+import com.harshqa.qadashboardai.entity.*;
+import com.harshqa.qadashboardai.repository.ProjectRepository;
 import com.harshqa.qadashboardai.repository.TestCaseRepository;
 import com.harshqa.qadashboardai.repository.TestManagementRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
@@ -24,33 +22,41 @@ public class DashboardService {
     private final TestRunRepository testRunRepository;
     private final TestCaseRepository testCaseRepository;
     private final TestManagementRepository testManagementRepository;
+    private final ProjectRepository projectRepository;
 
     public DashboardService(TestRunRepository testRunRepository,
                             TestCaseRepository testCaseRepository,
-                            TestManagementRepository testManagementRepository) {
+                            TestManagementRepository testManagementRepository, ProjectRepository projectRepository) {
         this.testRunRepository = testRunRepository;
         this.testCaseRepository = testCaseRepository;
         this.testManagementRepository = testManagementRepository;
+        this.projectRepository = projectRepository;
+    }
+
+    private Project getProject(Long projectId) {
+        return projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
     }
 
     @Transactional(readOnly = true)
-    public TrendsResponse getTrendAnalysis(int days) {
+    public TrendsResponse getTrendAnalysis(int days, Long projectId) {
+        Project project = getProject(projectId);
         // Calculate the cutoff date
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime cutoff = now.minusDays(days);
-        LocalDateTime prevCutoff = now.minusDays(days * 2);
+        LocalDateTime prevCutoff = now.minusDays(days * 2L);
 
-        // 1. Fetch Current Period Runs
-        List<TestRun> runs = testRunRepository.findAllByExecutionDateAfterOrderByExecutionDateDesc(cutoff);
+        // Fetch Current Period Runs for Project
+        List<TestRun> runs = testRunRepository.findAllByProjectAndExecutionDateAfterOrderByExecutionDateDesc(project, cutoff);
 
-        // 2. Fetch Previous Period Runs (for Trend Calculation)
-        List<TestRun> prevRuns = testRunRepository.findAllByExecutionDateBetween(prevCutoff, cutoff);
+        // Fetch Previous Period Runs for Project (For trend calculation)
+        List<TestRun> prevRuns = testRunRepository.findAllByProjectAndExecutionDateBetween(project, prevCutoff, cutoff);
 
-        // 3. Calculate Daily Trends (The List)
+        // Calculate Daily Trends (The List)
         List<TrendDto> dailyTrends = calculateDailyTrends(runs);
 
         // 4. Calculate Top Level Metrics
-        DashboardMetricsDto metrics = calculateDashboardMetrics(runs, prevRuns, cutoff);
+        DashboardMetricsDto metrics = calculateDashboardMetrics(runs, prevRuns, cutoff, projectId);
 
         return TrendsResponse.builder()
                 .metrics(metrics)
@@ -101,7 +107,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    private DashboardMetricsDto calculateDashboardMetrics(List<TestRun> currentRuns, List<TestRun> prevRuns, LocalDateTime cutoff) {
+    private DashboardMetricsDto calculateDashboardMetrics(List<TestRun> currentRuns, List<TestRun> prevRuns, LocalDateTime cutoff, Long projectId) {
         // A. Total Runs
         int totalRuns = currentRuns.size();
 
@@ -129,7 +135,7 @@ public class DashboardService {
         double trend = avgPassRate - prevPassRate; // Positive = Good, Negative = Bad
 
         // E. Unique Failures
-        long uniqueFailures = testCaseRepository.countUniqueFailures(cutoff);
+        long uniqueFailures = testCaseRepository.countUniqueFailures(cutoff, projectId);
 
         // F. Avg Execution Time (Across ALL tests in current period)
         DoubleSummaryStatistics execStats = currentRuns.stream()
@@ -149,12 +155,12 @@ public class DashboardService {
                 .build();
     }
 
-    public List<FailureStatDto> getTopFailures(int limit, int days) {
+    public List<FailureStatDto> getTopFailures(int limit, int days, Long projectId) {
         // Calculate Cutoff
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
 
         // Ask repository for the top 'limit' items within cutoff period
-        List<Object[]> results = testCaseRepository.findTopFailures(cutoff, PageRequest.of(0, limit));
+        List<Object[]> results = testCaseRepository.findTopFailures(cutoff, projectId, PageRequest.of(0, limit));
 
         // Map the raw [Entity, Count] array to DTOs
         return results.stream()
@@ -171,9 +177,9 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
-    public FlakyTestsResponse getFlakyTests(int days, int threshold) {
+    public FlakyTestsResponse getFlakyTests(int days, int threshold, Long projectId) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
-        List<Object[]> results = testCaseRepository.findFlakyTests(cutoff);
+        List<Object[]> results = testCaseRepository.findFlakyTests(cutoff, projectId);
 
         List<FlakyTestDto> tests = results.stream()
                 .map(row -> {
@@ -250,11 +256,11 @@ public class DashboardService {
                 .build();
     }
 
-    public List<FailurePatternDto> getFailurePatterns(int days) {
+    public List<FailurePatternDto> getFailurePatterns(int days, Long projectId) {
         // Simple regex/keyword matching on top failures
         // In a real app, you might use AI or clustering here
 
-        List<FailureStatDto> topFailures = getTopFailures(100, days);
+        List<FailureStatDto> topFailures = getTopFailures(100, days, projectId);
 
         Map<String, Integer> categories = new HashMap<>();
         categories.put("Timeout", 0);

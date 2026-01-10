@@ -1,6 +1,8 @@
 package com.harshqa.qadashboardai.repository;
 
+import com.harshqa.qadashboardai.entity.Project;
 import com.harshqa.qadashboardai.entity.TestRun;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,19 +12,22 @@ import java.util.List;
 @Repository
 public interface TestRunRepository extends JpaRepository<TestRun, Long> {
 
-    // Magic Method! Spring automatically writes the SQL for this:
-    // SELECT * FROM test_runs ORDER BY execution_date DESC LIMIT 10
-    List<TestRun> findTop10ByOrderByExecutionDateDesc();
+    // Dashboard Widget (Latest 5 for a Project)
+    List<TestRun> findTop5ByProjectOrderByExecutionDateDesc(Project project);
 
-    List<TestRun> findTop5ByOrderByExecutionDateDesc();
+    // History Page (Filter by Date for a Project)
+    List<TestRun> findAllByProjectAndExecutionDateAfterOrderByExecutionDateDesc(Project project, LocalDateTime date);
 
-    // Test runs history page (Filter by Date + Sort Newest First)
-    // Adding "OrderByExecutionDateDesc" to ensure the UI shows the latest runs at the top.
-    List<TestRun> findAllByExecutionDateAfterOrderByExecutionDateDesc(LocalDateTime date);
+    // Get All for a Project
+    List<TestRun> findAllByProject(Project project, Sort sort);
 
-    // Find all runs after a specific date (e.g., 7 days ago)
-    List<TestRun> findAllByExecutionDateAfter(LocalDateTime date);
+    // Trend Calculation (Previous Period for a Project)
+    List<TestRun> findAllByProjectAndExecutionDateBetween(Project project, LocalDateTime start, LocalDateTime end);
 
-    // For previous period calculation (Trend indicator)
-    List<TestRun> findAllByExecutionDateBetween(LocalDateTime start, LocalDateTime end);
+    // UPDATED: Find run by Date AND Project (for the merge logic)
+    List<TestRun> findAllByExecutionDateBetweenAndProject(
+            LocalDateTime start,
+            LocalDateTime end,
+            Project project
+    );
 }

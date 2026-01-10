@@ -28,7 +28,7 @@ public class ReportAnalysisController {
     }
 
     @PostMapping("/upload-report")
-    public List<Long> uploadReport(@RequestParam("files") MultipartFile[] files) {
+    public List<Long> uploadReport(@RequestParam("files") MultipartFile[] files, @RequestParam("projectId") Long projectId) {
         List<Long> runIds = new ArrayList<>();
         try {
             for (MultipartFile file : files) {
@@ -36,8 +36,8 @@ public class ReportAnalysisController {
                 TestReport report = xmlParserService.parse(file.getInputStream());
 
                 // SAVE to Database
-                Long runId = testRunService.saveTestRun(report);
-                System.out.println("Report saved with ID: " + runId);
+                Long runId = testRunService.saveTestRun(report, projectId);
+                System.out.println("Report saved for Project " + projectId + " with ID: " + runId);
 
                 // Add the IDs to array to return after processing all the files.
                 runIds.add(runId);

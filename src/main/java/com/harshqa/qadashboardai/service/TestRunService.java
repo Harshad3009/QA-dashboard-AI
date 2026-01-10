@@ -1,11 +1,13 @@
 package com.harshqa.qadashboardai.service;
 
+import com.harshqa.qadashboardai.entity.Project;
 import com.harshqa.qadashboardai.entity.TestCase;
 import com.harshqa.qadashboardai.entity.TestFailure;
 import com.harshqa.qadashboardai.entity.TestRun;
 import com.harshqa.qadashboardai.model.FailureDefinition;
 import com.harshqa.qadashboardai.model.TestReport;
 import com.harshqa.qadashboardai.model.TestCaseDetail;
+import com.harshqa.qadashboardai.repository.ProjectRepository;
 import com.harshqa.qadashboardai.repository.TestFailureRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
 import org.springframework.stereotype.Service;
@@ -27,10 +29,17 @@ public class TestRunService {
 
     private final TestRunRepository testRunRepository;
     private final TestFailureRepository testFailureRepository;
+    private final ProjectRepository projectRepository;
 
-    public TestRunService(TestRunRepository testRunRepository, TestFailureRepository testFailureRepository) {
+    public TestRunService(TestRunRepository testRunRepository, TestFailureRepository testFailureRepository, ProjectRepository projectRepository) {
         this.testRunRepository = testRunRepository;
         this.testFailureRepository = testFailureRepository;
+        this.projectRepository = projectRepository;
+    }
+
+    private Project getProject(Long projectId) {
+        return projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
     }
 
     /**
@@ -40,7 +49,11 @@ public class TestRunService {
      * 3. If new -> CREATE (Standard save).
      */
     @Transactional // Ensures either everything saves or nothing saves (Atomic)
-    public Long saveTestRun(TestReport report) {
+    public Long saveTestRun(TestReport report, Long projectId) {
+
+        // 1. Fetch Project
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
 
         LocalDateTime reportDate = report.getTimestamp();
         if (reportDate == null) reportDate = LocalDateTime.now();
@@ -50,7 +63,7 @@ public class TestRunService {
         LocalDateTime endOfDay = reportDate.toLocalDate().atTime(LocalTime.MAX);
 
         // Fetch runs for this date
-        List<TestRun> existingRuns = testRunRepository.findAllByExecutionDateBetween(startOfDay, endOfDay);
+        List<TestRun> existingRuns = testRunRepository.findAllByExecutionDateBetweenAndProject(startOfDay, endOfDay, project);
 
         if (!existingRuns.isEmpty()) {
             // MERGE STRATEGY: Update the existing run (Taking the first match if multiple exist)
@@ -58,14 +71,16 @@ public class TestRunService {
             return mergeWithExistingRun(existingRun, report);
         } else {
             // CREATE STRATEGY: Standard new entry
-            return createNewTestRun(report);
+            return createNewTestRun(report, project);
         }
 
     }
 
-    private Long createNewTestRun(TestReport report) {
+    private Long createNewTestRun(TestReport report, Project project) {
         // Map POJO -> Entity
         TestRun run = new TestRun();
+        run.setProject(project); // Set the project
+
         run.setExecutionDate(report.getTimestamp() != null ? report.getTimestamp() : LocalDateTime.now());
         run.setTotalTests(report.getTotalTests());
         run.setPassCount(report.getPassCount());
@@ -232,11 +247,12 @@ public class TestRunService {
 
     // NEW: Delete by Date (YYYY-MM-DD)
     @Transactional
-    public void deleteRunByDate(LocalDate date) {
+    public void deleteRunByDate(LocalDate date, Long projectId) {
+        Project project = getProject(projectId);
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
-        List<TestRun> runs = testRunRepository.findAllByExecutionDateBetween(startOfDay, endOfDay);
+        List<TestRun> runs = testRunRepository.findAllByProjectAndExecutionDateBetween(project, startOfDay, endOfDay);
         if (runs.isEmpty()) {
             throw new RuntimeException("No Test Run found for date: " + date);
         }
