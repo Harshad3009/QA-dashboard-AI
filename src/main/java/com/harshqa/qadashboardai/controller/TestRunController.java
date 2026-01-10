@@ -1,7 +1,9 @@
 package com.harshqa.qadashboardai.controller;
 
+import com.harshqa.qadashboardai.entity.Project;
 import com.harshqa.qadashboardai.entity.TestRun;
 import com.harshqa.qadashboardai.model.TestReport;
+import com.harshqa.qadashboardai.repository.ProjectRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
 import com.harshqa.qadashboardai.service.AiAnalysisService;
 import com.harshqa.qadashboardai.service.TestRunService;
@@ -17,11 +19,13 @@ import java.util.List;
 @RequestMapping("/api/runs")
 class TestRunController {
 
+    private final ProjectRepository projectRepository;
     private final TestRunRepository testRunRepository;
     private final AiAnalysisService aiAnalysisService;
     private final TestRunService testRunService;
 
-    public TestRunController(TestRunRepository testRunRepository, AiAnalysisService aiAnalysisService, TestRunService testRunService) {
+    public TestRunController(ProjectRepository projectRepository, TestRunRepository testRunRepository, AiAnalysisService aiAnalysisService, TestRunService testRunService) {
+        this.projectRepository = projectRepository;
         this.testRunRepository = testRunRepository;
         this.aiAnalysisService = aiAnalysisService;
         this.testRunService = testRunService;
@@ -31,21 +35,24 @@ class TestRunController {
     @GetMapping
     public List<TestRun> getAllRuns(
             @RequestParam(required = false) Integer limit, // e.g. ?limit=5
-            @RequestParam(required = false) Integer days   // e.g. ?days=30
+            @RequestParam(required = false) Integer days,   // e.g. ?days=30
+            @RequestParam Long projectId
     ) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
         // Scenario A: Dashboard Widget -> Get Latest 5
         if (limit != null && limit == 5) {
-            return testRunRepository.findTop5ByOrderByExecutionDateDesc();
+            return testRunRepository.findTop5ByProjectOrderByExecutionDateDesc(project);
         }
 
         // Scenario B: History Page -> Filter by Last X Days
         if (days != null) {
             LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
-            return testRunRepository.findAllByExecutionDateAfterOrderByExecutionDateDesc(cutoffDate);
+            return testRunRepository.findAllByProjectAndExecutionDateAfterOrderByExecutionDateDesc(project, cutoffDate);
         }
 
-        // Scenario C: Default -> Return All (Sorted Newest First)
-        return testRunRepository.findAll(Sort.by(Sort.Direction.DESC, "executionDate"));
+        // Default: Return all for project
+        return testRunRepository.findAllByProject(project, Sort.by(Sort.Direction.DESC, "executionDate"));
     }
 
     // 2. Get Single Run Details (For the deep dive)
@@ -64,9 +71,10 @@ class TestRunController {
     // Delete by Date (e.g., DELETE /api/runs?date=2025-12-26)
     @DeleteMapping
     public void deleteRunByDate(
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam Long projectId
     ) {
-        testRunService.deleteRunByDate(date);
+        testRunService.deleteRunByDate(date, projectId);
     }
 
     // Endpoint: POST /api/runs/{id}/analyze

@@ -37,6 +37,11 @@ public class TestRunService {
         this.projectRepository = projectRepository;
     }
 
+    private Project getProject(Long projectId) {
+        return projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
+    }
+
     /**
      * Smart Save:
      * 1. Checks if a run exists for the same DATE (ignoring timestamp).
@@ -242,11 +247,12 @@ public class TestRunService {
 
     // NEW: Delete by Date (YYYY-MM-DD)
     @Transactional
-    public void deleteRunByDate(LocalDate date) {
+    public void deleteRunByDate(LocalDate date, Long projectId) {
+        Project project = getProject(projectId);
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
-        List<TestRun> runs = testRunRepository.findAllByExecutionDateBetween(startOfDay, endOfDay);
+        List<TestRun> runs = testRunRepository.findAllByProjectAndExecutionDateBetween(project, startOfDay, endOfDay);
         if (runs.isEmpty()) {
             throw new RuntimeException("No Test Run found for date: " + date);
         }
