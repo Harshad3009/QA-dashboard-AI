@@ -1,5 +1,6 @@
 package com.harshqa.qadashboardai.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -34,6 +35,12 @@ public class TestRun {
     // CascadeType.ALL means: If I save the Run, save all its TestCases too.
     @OneToMany(mappedBy = "testRun", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TestCase> testCases = new ArrayList<>();
+
+    // Link to Project
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    @JsonIgnore // Prevent infinite recursion in JSON response
+    private Project project;
 
     // @Transient tells Hibernate/JPA: "Do not look for a 'status' column in the DB".
     // However, Jackson (JSON) will still call this getter and add "status" to the API response.

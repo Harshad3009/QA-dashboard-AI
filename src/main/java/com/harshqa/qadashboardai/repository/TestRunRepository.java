@@ -1,5 +1,6 @@
 package com.harshqa.qadashboardai.repository;
 
+import com.harshqa.qadashboardai.entity.Project;
 import com.harshqa.qadashboardai.entity.TestRun;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -25,4 +26,11 @@ public interface TestRunRepository extends JpaRepository<TestRun, Long> {
 
     // For previous period calculation (Trend indicator)
     List<TestRun> findAllByExecutionDateBetween(LocalDateTime start, LocalDateTime end);
+
+    // UPDATED: Find run by Date AND Project (for the merge logic)
+    List<TestRun> findAllByExecutionDateBetweenAndProject(
+            LocalDateTime start,
+            LocalDateTime end,
+            Project project
+    );
 }
