@@ -2,7 +2,11 @@ package com.harshqa.qadashboardai.controller;
 
 import com.harshqa.qadashboardai.dto.*;
 import com.harshqa.qadashboardai.service.DashboardService;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -53,6 +57,22 @@ public class DashboardController {
         String testName = (String) payload.get("testName");
         boolean acknowledged = (boolean) payload.get("acknowledged");
         String status = (String) payload.get("resolutionStatus");
-        return dashboardService.updateFlakyStatus(className, testName, acknowledged, status);
+        String assignee = (String) payload.get("assignee");
+
+        // --- RBAC CHECK ---
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        // If user is trying to change assignee
+        if (assignee != null) {
+            boolean isManager = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_MANAGER"));
+            // Rule: Engineers can only assign to themselves
+            if (!isManager && !assignee.equals(currentUsername)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Engineers can only assign tests to themselves.");
+            }
+        }
+
+        return dashboardService.updateFlakyStatus(className, testName, acknowledged, status, assignee);
     }
 }

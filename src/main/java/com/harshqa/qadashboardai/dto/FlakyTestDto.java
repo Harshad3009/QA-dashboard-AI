@@ -17,4 +17,5 @@ public class FlakyTestDto {
     private String id; // Composite key or specific ID
     private boolean acknowledged;
     private String resolutionStatus;
+    private String assignee;
 }

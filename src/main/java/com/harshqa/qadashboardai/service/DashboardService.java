@@ -205,6 +205,7 @@ public class DashboardService {
                             .id(mgmt.getId() != null ? mgmt.getId().toString() : "new_" + className + "_" + testName)
                             .acknowledged(mgmt.isAcknowledged())
                             .resolutionStatus(mgmt.getResolutionStatus())
+                            .assignee(mgmt.getAssignee())
                             .build();
                 })
                 // Filter by Threshold
@@ -236,7 +237,7 @@ public class DashboardService {
                 .build();
     }
 
-    public FlakyTestDto updateFlakyStatus(String className, String testName, boolean acknowledged, String status) {
+    public FlakyTestDto updateFlakyStatus(String className, String testName, boolean acknowledged, String status, String assignee) {
         TestManagement mgmt = testManagementRepository
                 .findByClassNameAndTestName(className, testName)
                 .orElse(new TestManagement(className, testName));
@@ -244,6 +245,9 @@ public class DashboardService {
         mgmt.setAcknowledged(acknowledged);
         if (status != null) {
             mgmt.setResolutionStatus(status);
+        }
+        if (assignee != null) {
+            mgmt.setAssignee(assignee);
         }
 
         TestManagement saved = testManagementRepository.save(mgmt);
@@ -253,6 +257,7 @@ public class DashboardService {
                 .className(className)
                 .acknowledged(saved.isAcknowledged())
                 .resolutionStatus(saved.getResolutionStatus())
+                .assignee(saved.getAssignee())
                 .build();
     }
 
