@@ -5,6 +5,8 @@ import com.harshqa.qadashboardai.model.TestReport;
 import com.harshqa.qadashboardai.service.AiAnalysisService;
 import com.harshqa.qadashboardai.service.TestRunService;
 import com.harshqa.qadashboardai.service.XmlParserService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,7 +30,22 @@ public class ReportAnalysisController {
     }
 
     @PostMapping("/upload-report")
-    public List<Long> uploadReport(@RequestParam("files") MultipartFile[] files, @RequestParam("projectId") Long projectId) {
+    public List<Long> uploadReport(@RequestParam("files") MultipartFile[] files,
+                                   @RequestParam(value = "projectId", required = false) Long projectId) {
+        // --- Determine Project ID ---
+        Long finalProjectId = projectId;
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        // If authenticated via API Key, the "credentials" field holds the Project ID (set in Filter)
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_SYSTEM"))) {
+            finalProjectId = (Long) auth.getCredentials();
+        }
+
+        if (finalProjectId == null) {
+            throw new RuntimeException("Project ID is required (either via parameter or API Key)");
+        }
+        // ----------------------------
         List<Long> runIds = new ArrayList<>();
         try {
             for (MultipartFile file : files) {
@@ -36,8 +53,8 @@ public class ReportAnalysisController {
                 TestReport report = xmlParserService.parse(file.getInputStream());
 
                 // SAVE to Database
-                Long runId = testRunService.saveTestRun(report, projectId);
-                System.out.println("Report saved for Project " + projectId + " with ID: " + runId);
+                Long runId = testRunService.saveTestRun(report, finalProjectId);
+                System.out.println("Report saved for Project " + finalProjectId + " with ID: " + runId);
 
                 // Add the IDs to array to return after processing all the files.
                 runIds.add(runId);
