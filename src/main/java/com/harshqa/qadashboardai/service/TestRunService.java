@@ -1,5 +1,6 @@
 package com.harshqa.qadashboardai.service;
 
+import com.harshqa.qadashboardai.dto.TestRunEvent;
 import com.harshqa.qadashboardai.entity.Project;
 import com.harshqa.qadashboardai.entity.TestCase;
 import com.harshqa.qadashboardai.entity.TestFailure;
@@ -10,6 +11,7 @@ import com.harshqa.qadashboardai.model.TestCaseDetail;
 import com.harshqa.qadashboardai.repository.ProjectRepository;
 import com.harshqa.qadashboardai.repository.TestFailureRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +32,13 @@ public class TestRunService {
     private final TestRunRepository testRunRepository;
     private final TestFailureRepository testFailureRepository;
     private final ProjectRepository projectRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public TestRunService(TestRunRepository testRunRepository, TestFailureRepository testFailureRepository, ProjectRepository projectRepository) {
+    public TestRunService(TestRunRepository testRunRepository, TestFailureRepository testFailureRepository, ProjectRepository projectRepository, SimpMessagingTemplate messagingTemplate) {
         this.testRunRepository = testRunRepository;
         this.testFailureRepository = testFailureRepository;
         this.projectRepository = projectRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     private Project getProject(Long projectId) {
@@ -51,7 +55,7 @@ public class TestRunService {
     @Transactional // Ensures either everything saves or nothing saves (Atomic)
     public Long saveTestRun(TestReport report, Long projectId) {
 
-        // 1. Fetch Project
+        // Fetch Project
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
 
@@ -65,14 +69,44 @@ public class TestRunService {
         // Fetch runs for this date
         List<TestRun> existingRuns = testRunRepository.findAllByExecutionDateBetweenAndProject(startOfDay, endOfDay, project);
 
+        Long savedRunId;
+        String eventType;
+
         if (!existingRuns.isEmpty()) {
             // MERGE STRATEGY: Update the existing run (Taking the first match if multiple exist)
             TestRun existingRun = existingRuns.getFirst();
-            return mergeWithExistingRun(existingRun, report);
+            savedRunId = mergeWithExistingRun(existingRun, report);
+            eventType = "UPDATE";
         } else {
             // CREATE STRATEGY: Standard new entry
-            return createNewTestRun(report, project);
+            savedRunId =  createNewTestRun(report, project);
+            eventType = "NEW_RUN";
         }
+
+        // --- Publish Real-time Event ---
+        // We fetch the run to get the latest calculated status/counts
+        TestRun savedRun = testRunRepository.findById(savedRunId).orElse(null);
+
+        if (savedRun != null) {
+            TestRunEvent event = new TestRunEvent(
+                    savedRun.getId(),
+                    savedRun.getStatus(), // "Healthy" or "Unhealthy"
+                    project.getId(),
+                    project.getName(),
+                    savedRun.getTotalTests(),
+                    savedRun.getFailCount(),
+                    eventType
+            );
+
+            // Topic: /topic/project/{id}/runs
+            String destination = "/topic/project/" + project.getId() + "/runs";
+            messagingTemplate.convertAndSend(destination, event);
+
+            System.out.println("WebSocket Event sent to: " + destination);
+        }
+        // ----------------------------------
+
+        return savedRunId;
 
     }
 

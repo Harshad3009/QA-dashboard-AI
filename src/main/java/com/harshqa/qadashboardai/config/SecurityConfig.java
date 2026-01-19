@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll() // Allow DB Console
                         // Ensuring upload endpoint is accessible to authenticated users (both Humans and API Keys)
                         .requestMatchers("/upload-report").authenticated()
+                        // Allow WebSocket connections
+                        .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated() // Protect everything else
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // For H2 Console
