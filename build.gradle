@@ -43,6 +43,9 @@ dependencies {
     // The Database (H2 - In-Memory SQL DB)
     runtimeOnly 'com.h2database:h2'
 
+    // PostgreSQL Driver (For production-grade DB support)
+    runtimeOnly 'org.postgresql:postgresql'
+
     // The Translator (Spring Data JPA)
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 

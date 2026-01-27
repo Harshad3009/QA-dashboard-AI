@@ -38,28 +38,14 @@ class TestRunController {
             @RequestParam(required = false) Integer days,   // e.g. ?days=30
             @RequestParam Long projectId
     ) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
-        // Scenario A: Dashboard Widget -> Get Latest 5
-        if (limit != null && limit == 5) {
-            return testRunRepository.findTop5ByProjectOrderByExecutionDateDesc(project);
-        }
-
-        // Scenario B: History Page -> Filter by Last X Days
-        if (days != null) {
-            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
-            return testRunRepository.findAllByProjectAndExecutionDateAfterOrderByExecutionDateDesc(project, cutoffDate);
-        }
-
-        // Default: Return all for project
-        return testRunRepository.findAllByProject(project, Sort.by(Sort.Direction.DESC, "executionDate"));
+        // Delegate to Service (which handles Transaction & Project lookup)
+        return testRunService.getRuns(projectId, limit, days);
     }
 
     // 2. Get Single Run Details (For the deep dive)
     @GetMapping("/{id}")
     public TestRun getRunById(@PathVariable Long id) {
-        return testRunRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Run not found: " + id));
+        return testRunService.getRunById(id);
     }
 
     // Delete by ID

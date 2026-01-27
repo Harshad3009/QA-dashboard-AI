@@ -11,6 +11,7 @@ import com.harshqa.qadashboardai.model.TestCaseDetail;
 import com.harshqa.qadashboardai.repository.ProjectRepository;
 import com.harshqa.qadashboardai.repository.TestFailureRepository;
 import com.harshqa.qadashboardai.repository.TestRunRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,28 @@ public class TestRunService {
     private Project getProject(Long projectId) {
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found: " + projectId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TestRun> getRuns(Long projectId, Integer limit, Integer days) {
+        Project project = getProject(projectId);
+        // Scenario A: Dashboard Widget -> Get Latest 5
+        if (limit != null && limit == 5) {
+            return testRunRepository.findTop5ByProjectOrderByExecutionDateDesc(project);
+        }
+        // Scenario B: History Page -> Filter by Last X Days
+        if (days != null && days > 0) {
+            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
+            return testRunRepository.findAllByProjectAndExecutionDateAfterOrderByExecutionDateDesc(project, cutoffDate);
+        }
+        // Default: Return all for project
+        return testRunRepository.findAllByProject(project, Sort.by(Sort.Direction.DESC, "executionDate"));
+    }
+
+    @Transactional(readOnly = true)
+    public TestRun getRunById(Long id) {
+        return testRunRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Run not found: " + id));
     }
 
     /**

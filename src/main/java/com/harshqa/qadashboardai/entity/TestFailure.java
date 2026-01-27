@@ -17,9 +17,9 @@ public class TestFailure {
     @Column(unique = true, nullable = false)
     private String failureHash;
 
+    @Column(columnDefinition = "TEXT") // Use Postgres TEXT type
     private String message;
 
-    @Lob
-    @Column(length = 10000)
+    @Column(columnDefinition = "TEXT") // Use Postgres TEXT type
     private String stackTrace;
 }
