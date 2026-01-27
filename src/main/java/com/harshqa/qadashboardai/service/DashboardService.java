@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class DashboardService {
 
     private final TestRunRepository testRunRepository;
@@ -237,6 +238,7 @@ public class DashboardService {
                 .build();
     }
 
+    @Transactional
     public FlakyTestDto updateFlakyStatus(String className, String testName, boolean acknowledged, String status, String assignee) {
         TestManagement mgmt = testManagementRepository
                 .findByClassNameAndTestName(className, testName)
